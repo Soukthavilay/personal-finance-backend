@@ -4,12 +4,20 @@ const mysql = require('mysql2/promise');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 async function initDb() {
+  const host = process.env.DB_HOST || 'localhost';
+  const port = process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306;
+  if (process.env.DB_PORT && Number.isNaN(port)) {
+    throw new Error(`Invalid DB_PORT: ${process.env.DB_PORT}`);
+  }
+
+  const user = process.env.DB_USER || 'root';
+  const password = process.env.DB_PASSWORD || '';
+
   const connection = await mysql.createConnection({
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT),
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD || '',
+    host,
+    port,
+    user,
+    password,
     multipleStatements: true
   });
 
