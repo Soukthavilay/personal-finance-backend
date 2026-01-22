@@ -17,7 +17,7 @@ exports.getDashboardStats = async (req, res) => {
     const [incomeResult] = await db.execute(
         `SELECT SUM(t.amount) as total FROM Transactions t 
          JOIN Categories c ON t.category_id = c.id 
-         WHERE t.user_id = ? AND c.type = 'income' ${dateFilter}`, 
+         WHERE t.user_id = ? AND c.user_id = t.user_id AND c.type = 'income' ${dateFilter}`, 
          params
     );
 
@@ -25,7 +25,7 @@ exports.getDashboardStats = async (req, res) => {
     const [expenseResult] = await db.execute(
         `SELECT SUM(t.amount) as total FROM Transactions t 
          JOIN Categories c ON t.category_id = c.id 
-         WHERE t.user_id = ? AND c.type = 'expense' ${dateFilter}`,
+         WHERE t.user_id = ? AND c.user_id = t.user_id AND c.type = 'expense' ${dateFilter}`,
          params
     );
 
@@ -33,7 +33,7 @@ exports.getDashboardStats = async (req, res) => {
     const [categoryStats] = await db.execute(
         `SELECT c.name, SUM(t.amount) as total FROM Transactions t 
          JOIN Categories c ON t.category_id = c.id 
-         WHERE t.user_id = ? AND c.type = 'expense' ${dateFilter} 
+         WHERE t.user_id = ? AND c.user_id = t.user_id AND c.type = 'expense' ${dateFilter} 
          GROUP BY c.name`,
          params
     );
