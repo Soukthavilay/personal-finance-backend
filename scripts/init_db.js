@@ -5,9 +5,11 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 async function initDb() {
   const connection = await mysql.createConnection({
+    database: process.env.DB_NAME,
     host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT),
     user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
+    password: process.env.DB_PASSWORD || '',
     multipleStatements: true
   });
 
