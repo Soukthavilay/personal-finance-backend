@@ -23,4 +23,7 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-module.exports = pool.promise();
+const promisePool = pool.promise();
+promisePool.end = pool.end.bind(pool);
+
+module.exports = promisePool;

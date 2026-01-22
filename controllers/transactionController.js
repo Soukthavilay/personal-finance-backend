@@ -12,8 +12,10 @@ exports.getAllTransactions = async (req, res) => {
     return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD' });
   }
 
-  const pageLimit = Math.min(Number(limit) || 50, 200);
-  const pageOffset = Math.max(Number(offset) || 0, 0);
+  const parsedLimit = limit !== undefined ? Number.parseInt(String(limit), 10) : 50;
+  const parsedOffset = offset !== undefined ? Number.parseInt(String(offset), 10) : 0;
+  const pageLimit = Math.min(Number.isFinite(parsedLimit) ? parsedLimit : 50, 200);
+  const pageOffset = Math.max(Number.isFinite(parsedOffset) ? parsedOffset : 0, 0);
 
   const categoryFilter = categoryId || categoryStr;
 
@@ -33,8 +35,7 @@ exports.getAllTransactions = async (req, res) => {
       params.push(categoryFilter);
   }
 
-  query += ' ORDER BY t.transaction_date DESC LIMIT ? OFFSET ?';
-  params.push(pageLimit, pageOffset);
+  query += ` ORDER BY t.transaction_date DESC LIMIT ${pageLimit} OFFSET ${pageOffset}`;
 
   try {
     const [transactions] = await db.execute(query, params);
