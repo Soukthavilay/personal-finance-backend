@@ -1,5 +1,8 @@
 const express = require('express');
 const dotenv = require('dotenv');
+const cookieParser = require('cookie-parser');
+const cors = require('cors');
+const verifyCsrf = require('./middleware/csrfMiddleware');
 const authRoutes = require('./routes/authRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
@@ -12,6 +15,25 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(cookieParser());
+
+if (process.env.CORS_ORIGIN) {
+  app.use(
+    cors({
+      origin: process.env.CORS_ORIGIN.split(',').map((s) => s.trim()),
+      credentials: true
+    })
+  );
+}
+
+app.use((req, res, next) => {
+  const path = req.path || '';
+  if (path === '/api/auth/login' || path === '/api/auth/register' || path === '/api/auth/csrf') {
+    return next();
+  }
+
+  return verifyCsrf(req, res, next);
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
