@@ -9,6 +9,7 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const budgetRoutes = require('./routes/budgetRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const userRoutes = require('./routes/userRoutes');
 const { startScheduler } = require('./services/notificationScheduler');
 
 dotenv.config();
@@ -56,6 +57,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/users', userRoutes);
 
 app.get('/', (req, res) => {
   res.send('Personal Finance API is running');

@@ -36,6 +36,18 @@ async function initDb() {
       }
     }
 
+    try {
+      await connection.query(`ALTER TABLE Users
+        ADD COLUMN full_name VARCHAR(255) NULL,
+        ADD COLUMN currency VARCHAR(3) NOT NULL DEFAULT 'VND',
+        ADD COLUMN timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Bangkok',
+        ADD COLUMN avatar_url TEXT NULL`);
+    } catch (err) {
+      if (!(err && (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060))) {
+        throw err;
+      }
+    }
+
     console.log('Database initialized successfully.');
   } catch (err) {
     console.error('Error initializing database:', err);

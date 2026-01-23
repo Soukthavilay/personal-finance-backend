@@ -36,6 +36,18 @@ async function ensureSchema() {
         throw err;
       }
     }
+
+    try {
+      await conn.query(`ALTER TABLE Users
+        ADD COLUMN full_name VARCHAR(255) NULL,
+        ADD COLUMN currency VARCHAR(3) NOT NULL DEFAULT 'VND',
+        ADD COLUMN timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Bangkok',
+        ADD COLUMN avatar_url TEXT NULL`);
+    } catch (err) {
+      if (!(err && (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060))) {
+        throw err;
+      }
+    }
   } finally {
     await conn.end();
   }
@@ -141,6 +153,36 @@ describe('Personal Finance API - integration', () => {
       .post('/api/auth/login')
       .send({ email, password: newPassword })
       .expect(200);
+  });
+
+  test('User profile: GET/PUT /api/users/me works', async () => {
+    const agent = request.agent(app);
+
+    const email = 'u6@example.com';
+    const password = 'Password123!';
+
+    await agent
+      .post('/api/auth/register')
+      .send({ username: 'user6', email, password })
+      .expect(201);
+
+    await agent.post('/api/auth/login').send({ email, password }).expect(200);
+
+    const csrfRes = await agent.get('/api/auth/csrf').expect(200);
+    const csrfToken = csrfRes.body && csrfRes.body.csrfToken;
+    expect(typeof csrfToken).toBe('string');
+
+    const meBefore = await agent.get('/api/users/me').expect(200);
+    expect(meBefore.body && meBefore.body.user && meBefore.body.user.email).toBe(email);
+
+    const updateRes = await agent
+      .put('/api/users/me')
+      .set('x-csrf-token', csrfToken)
+      .send({ full_name: 'Test User', currency: 'USD', timezone: 'Asia/Bangkok' })
+      .expect(200);
+
+    expect(updateRes.body && updateRes.body.user && updateRes.body.user.full_name).toBe('Test User');
+    expect(updateRes.body && updateRes.body.user && updateRes.body.user.currency).toBe('USD');
   });
 
   test('CSRF: state-changing request without token is rejected; with token is accepted', async () => {

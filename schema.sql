@@ -6,6 +6,10 @@ CREATE TABLE IF NOT EXISTS Users (
     username VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255) NULL,
+    currency VARCHAR(3) NOT NULL DEFAULT 'VND',
+    timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Bangkok',
+    avatar_url TEXT NULL,
     reset_password_token_hash VARCHAR(64) NULL,
     reset_password_expires_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

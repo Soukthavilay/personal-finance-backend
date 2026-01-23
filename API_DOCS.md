@@ -157,6 +157,55 @@ Response:
 { "message": "Logged out" }
 ```
 
+---
+
+## Users
+
+All endpoints below: Auth required.
+
+### Get my profile
+
+`GET /api/users/me`
+
+Response:
+
+- `200`
+
+```json
+{
+  "user": {
+    "id": 1,
+    "username": "...",
+    "email": "...",
+    "full_name": "...",
+    "currency": "VND",
+    "timezone": "Asia/Bangkok",
+    "avatar_url": "...",
+    "created_at": "..."
+  }
+}
+```
+
+### Update my profile
+
+`PUT /api/users/me`
+
+Body (send any subset):
+
+```json
+{
+  "full_name": "string|null",
+  "currency": "VND",
+  "timezone": "Asia/Bangkok",
+  "avatar_url": "https://..."
+}
+```
+
+Notes:
+
+- Requires CSRF token for cookie-based requests.
+- If using `Authorization: Bearer ...`, CSRF is skipped.
+
 ### Forgot password
 
 `POST /api/auth/forgot-password`
