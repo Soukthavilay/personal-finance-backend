@@ -24,10 +24,21 @@ exports.createCategory = async (req, res) => {
   }
 
   try {
+    const [existing] = await db.execute(
+      'SELECT id FROM Categories WHERE user_id = ? AND type = ? AND LOWER(name) = LOWER(?) LIMIT 1',
+      [userId, type, normalizedName]
+    );
+    if (existing.length > 0) {
+      return res.status(400).json({ message: 'Category name already exists' });
+    }
+
     const [result] = await db.execute('INSERT INTO Categories (user_id, name, type) VALUES (?, ?, ?)', [userId, normalizedName, type]);
     res.status(201).json({ id: result.insertId, user_id: userId, name: normalizedName, type });
   } catch (error) {
     console.error(error);
+    if (error && (error.code === 'ER_DUP_ENTRY' || error.errno === 1062)) {
+      return res.status(400).json({ message: 'Category name already exists' });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -47,6 +58,14 @@ exports.updateCategory = async (req, res) => {
   }
 
   try {
+    const [existing] = await db.execute(
+      'SELECT id FROM Categories WHERE user_id = ? AND type = ? AND LOWER(name) = LOWER(?) AND id <> ? LIMIT 1',
+      [userId, type, normalizedName, id]
+    );
+    if (existing.length > 0) {
+      return res.status(400).json({ message: 'Category name already exists' });
+    }
+
     const [result] = await db.execute('UPDATE Categories SET name = ?, type = ? WHERE id = ? AND user_id = ?', [normalizedName, type, id, userId]);
 
     if (result.affectedRows === 0) {
@@ -56,6 +75,9 @@ exports.updateCategory = async (req, res) => {
     res.json({ message: 'Category updated' });
   } catch (error) {
     console.error(error);
+    if (error && (error.code === 'ER_DUP_ENTRY' || error.errno === 1062)) {
+      return res.status(400).json({ message: 'Category name already exists' });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };

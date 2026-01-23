@@ -14,7 +14,14 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+const jsonParser = express.json();
+app.use((req, res, next) => {
+  if (req.path === '/api/auth/logout') {
+    return next();
+  }
+
+  return jsonParser(req, res, next);
+});
 app.use(cookieParser());
 
 if (process.env.CORS_ORIGIN) {
