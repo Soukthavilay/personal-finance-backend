@@ -3,11 +3,58 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 
+function normalizeEmail(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim().toLowerCase();
+}
+
+function normalizeUsername(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim();
+}
+
+function isValidEmail(email) {
+  // Simple, pragmatic email check for coursework projects.
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isValidUsername(username) {
+  // 3-20 chars, letters/numbers/._ only
+  return /^[a-zA-Z0-9._]{3,20}$/.test(username);
+}
+
+function isStrongPassword(password) {
+  // 8-64 chars, at least 1 letter and 1 number
+  if (typeof password !== 'string') return false;
+  if (password.length < 8 || password.length > 64) return false;
+  if (!/[A-Za-z]/.test(password)) return false;
+  if (!/[0-9]/.test(password)) return false;
+  return true;
+}
+
 exports.register = async (req, res) => {
-  const { username, email, password } = req.body;
+  const rawUsername = req.body && req.body.username;
+  const rawEmail = req.body && req.body.email;
+  const rawPassword = req.body && req.body.password;
+
+  const username = normalizeUsername(rawUsername);
+  const email = normalizeEmail(rawEmail);
+  const password = typeof rawPassword === 'string' ? rawPassword : '';
 
   if (!username || !email || !password) {
     return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  if (!isValidUsername(username)) {
+    return res.status(400).json({ message: 'Invalid username. Use 3-20 chars: letters, numbers, . or _' });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ message: 'Invalid email format' });
+  }
+
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({ message: 'Password must be 8-64 characters and include letters and numbers' });
   }
 
   try {
@@ -69,10 +116,18 @@ exports.csrf = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const rawEmail = req.body && req.body.email;
+  const rawPassword = req.body && req.body.password;
+
+  const email = normalizeEmail(rawEmail);
+  const password = typeof rawPassword === 'string' ? rawPassword : '';
 
   if (!email || !password) {
     return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ message: 'Invalid email format' });
   }
 
   try {

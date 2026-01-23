@@ -72,7 +72,7 @@ describe('Personal Finance API - integration', () => {
 
     await agent
       .post('/api/auth/register')
-      .send({ username: 'u1', email, password })
+      .send({ username: 'user1', email, password })
       .expect(201);
 
     const loginRes = await agent
@@ -109,7 +109,7 @@ describe('Personal Finance API - integration', () => {
 
     await agent
       .post('/api/auth/register')
-      .send({ username: 'u2', email, password })
+      .send({ username: 'user2', email, password })
       .expect(201);
 
     await agent.post('/api/auth/login').send({ email, password }).expect(200);
@@ -133,7 +133,7 @@ describe('Personal Finance API - integration', () => {
 
     await agent
       .post('/api/auth/register')
-      .send({ username: 'u3', email, password })
+      .send({ username: 'user3', email, password })
       .expect(201);
 
     await agent.post('/api/auth/login').send({ email, password }).expect(200);
@@ -180,7 +180,7 @@ describe('Personal Finance API - integration', () => {
 
     await agent
       .post('/api/auth/register')
-      .send({ username: 'u4', email, password })
+      .send({ username: 'user4', email, password })
       .expect(201);
 
     await agent.post('/api/auth/login').send({ email, password }).expect(200);
