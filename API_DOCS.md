@@ -108,7 +108,7 @@ Responses:
 - `200` (sets cookie `token`)
 
 ```json
-{ "user": { "id": 1, "username": "...", "email": "..." } }
+{ "user": { "id": 1, "username": "...", "email": "..." }, "token": "..." }
 ```
 
 - `400`
@@ -156,6 +156,65 @@ Response:
 ```json
 { "message": "Logged out" }
 ```
+
+### Forgot password
+
+`POST /api/auth/forgot-password`
+
+Body:
+
+```json
+{ "email": "string" }
+```
+
+Responses:
+
+- `200`
+
+In development (non-production), returns a `resetToken` for testing:
+
+```json
+{ "message": "Reset token generated", "resetToken": "..." }
+```
+
+In production, does not return the token:
+
+```json
+{ "message": "If the email exists, a reset token has been generated" }
+```
+
+Notes:
+
+- This endpoint is CSRF-exempt.
+- Response is intentionally the same for existing/non-existing emails in production.
+
+### Reset password
+
+`POST /api/auth/reset-password`
+
+Body:
+
+```json
+{ "email": "string", "token": "string", "newPassword": "string" }
+```
+
+Responses:
+
+- `200`
+
+```json
+{ "message": "Password reset successfully" }
+```
+
+- `400`
+
+```json
+{ "message": "Invalid or expired reset token" }
+```
+
+Notes:
+
+- This endpoint is CSRF-exempt.
 
 ---
 

@@ -25,6 +25,17 @@ async function initDb() {
     const schemaSql = fs.readFileSync(path.join(__dirname, '../schema.sql'), 'utf8');
     console.log('Running schema.sql...');
     await connection.query(schemaSql);
+
+    try {
+      await connection.query(`ALTER TABLE Users
+        ADD COLUMN reset_password_token_hash VARCHAR(64) NULL,
+        ADD COLUMN reset_password_expires_at DATETIME NULL`);
+    } catch (err) {
+      if (!(err && (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060))) {
+        throw err;
+      }
+    }
+
     console.log('Database initialized successfully.');
   } catch (err) {
     console.error('Error initializing database:', err);

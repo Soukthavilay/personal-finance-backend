@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS Users (
     username VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    reset_password_token_hash VARCHAR(64) NULL,
+    reset_password_expires_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

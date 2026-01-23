@@ -32,6 +32,10 @@ function isStrongPassword(password) {
   return true;
 }
 
+function sha256Hex(value) {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
+
 exports.register = async (req, res) => {
   const rawUsername = req.body && req.body.username;
   const rawEmail = req.body && req.body.email;
@@ -96,6 +100,99 @@ exports.register = async (req, res) => {
     );
 
     res.status(201).json({ message: 'User registered successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  const rawEmail = req.body && req.body.email;
+  const email = normalizeEmail(rawEmail);
+
+  if (!email) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ message: 'Invalid email format' });
+  }
+
+  try {
+    const [users] = await db.execute('SELECT id FROM Users WHERE email = ? LIMIT 1', [email]);
+    if (users.length === 0) {
+      return res.json({ message: 'If the email exists, a reset token has been generated' });
+    }
+
+    const userId = users[0].id;
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = sha256Hex(resetToken);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+    await db.execute(
+      'UPDATE Users SET reset_password_token_hash = ?, reset_password_expires_at = ? WHERE id = ?',
+      [resetTokenHash, expiresAt, userId]
+    );
+
+    if (process.env.NODE_ENV === 'production') {
+      return res.json({ message: 'If the email exists, a reset token has been generated' });
+    }
+
+    return res.json({ message: 'Reset token generated', resetToken });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  const rawEmail = req.body && req.body.email;
+  const rawToken = req.body && req.body.token;
+  const rawNewPassword = req.body && req.body.newPassword;
+
+  const email = normalizeEmail(rawEmail);
+  const token = typeof rawToken === 'string' ? rawToken.trim() : '';
+  const newPassword = typeof rawNewPassword === 'string' ? rawNewPassword : '';
+
+  if (!email || !token || !newPassword) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ message: 'Invalid email format' });
+  }
+
+  if (!isStrongPassword(newPassword)) {
+    return res.status(400).json({ message: 'Password must be 8-64 characters and include letters and numbers' });
+  }
+
+  try {
+    const tokenHash = sha256Hex(token);
+    const [users] = await db.execute(
+      `SELECT id
+       FROM Users
+       WHERE email = ?
+         AND reset_password_token_hash = ?
+         AND reset_password_expires_at IS NOT NULL
+         AND reset_password_expires_at > NOW()
+       LIMIT 1`,
+      [email, tokenHash]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    const userId = users[0].id;
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    await db.execute(
+      'UPDATE Users SET password_hash = ?, reset_password_token_hash = NULL, reset_password_expires_at = NULL WHERE id = ?',
+      [passwordHash, userId]
+    );
+
+    res.json({ message: 'Password reset successfully' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });

@@ -37,7 +37,13 @@ if (process.env.CORS_ORIGIN) {
 
 app.use((req, res, next) => {
   const path = req.path || '';
-  if (path === '/api/auth/login' || path === '/api/auth/register' || path === '/api/auth/csrf') {
+  if (
+    path === '/api/auth/login' ||
+    path === '/api/auth/register' ||
+    path === '/api/auth/csrf' ||
+    path === '/api/auth/forgot-password' ||
+    path === '/api/auth/reset-password'
+  ) {
     return next();
   }
 

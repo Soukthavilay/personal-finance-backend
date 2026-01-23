@@ -26,6 +26,16 @@ async function ensureSchema() {
   try {
     const schemaSql = fs.readFileSync(path.join(__dirname, '../schema.sql'), 'utf8');
     await conn.query(schemaSql);
+
+    try {
+      await conn.query(`ALTER TABLE Users
+        ADD COLUMN reset_password_token_hash VARCHAR(64) NULL,
+        ADD COLUMN reset_password_expires_at DATETIME NULL`);
+    } catch (err) {
+      if (!(err && (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060))) {
+        throw err;
+      }
+    }
   } finally {
     await conn.end();
   }
@@ -97,6 +107,40 @@ describe('Personal Finance API - integration', () => {
     expect(logoutRes.body && logoutRes.body.message).toBe('Logged out');
 
     await agent.get('/api/auth/me').expect(401);
+  });
+
+  test('Forgot/reset password: can reset password using token and login with new password', async () => {
+    const email = 'u5@example.com';
+    const oldPassword = 'Password123!';
+
+    await request(app)
+      .post('/api/auth/register')
+      .send({ username: 'user5', email, password: oldPassword })
+      .expect(201);
+
+    const forgotRes = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email })
+      .expect(200);
+
+    const resetToken = forgotRes.body && forgotRes.body.resetToken;
+    expect(typeof resetToken).toBe('string');
+
+    const newPassword = 'Newpass1234';
+    await request(app)
+      .post('/api/auth/reset-password')
+      .send({ email, token: resetToken, newPassword })
+      .expect(200);
+
+    await request(app)
+      .post('/api/auth/login')
+      .send({ email, password: oldPassword })
+      .expect(400);
+
+    await request(app)
+      .post('/api/auth/login')
+      .send({ email, password: newPassword })
+      .expect(200);
   });
 
   test('CSRF: state-changing request without token is rejected; with token is accepted', async () => {

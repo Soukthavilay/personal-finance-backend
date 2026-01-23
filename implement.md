@@ -32,7 +32,7 @@ Optional:
 ## Database Schema (current)
 
 - **Users**
-  - `id`, `username`, `email`, `password_hash`, `created_at`
+  - `id`, `username`, `email`, `password_hash`, `reset_password_token_hash`, `reset_password_expires_at`, `created_at`
 - **Categories (per-user)**
   - `id`, `user_id`, `name`, `type`, `created_at`
   - Unique: `(user_id, name, type)`
@@ -55,7 +55,11 @@ Base URL: `/api`
   - Create user account.
 - `POST /auth/login`
   - Sets `token` cookie (HttpOnly).
-  - Does **NOT** return JWT token in response body.
+  - Returns JWT token in response body as `token` (for mobile bearer token flow).
+- `POST /auth/forgot-password`
+  - Generates password reset token.
+- `POST /auth/reset-password`
+  - Resets password using token.
 - `POST /auth/logout`
   - Clears `token` cookie.
 
