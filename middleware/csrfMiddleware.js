@@ -4,6 +4,11 @@ const verifyCsrf = (req, res, next) => {
     return next();
   }
 
+  const authHeader = req.headers && req.headers['authorization'];
+  if (typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
+    return next();
+  }
+
   const csrfCookie = req.cookies && req.cookies.csrfToken;
   const csrfHeader = req.headers['x-csrf-token'];
 

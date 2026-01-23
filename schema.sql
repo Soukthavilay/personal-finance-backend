@@ -41,3 +41,28 @@ CREATE TABLE IF NOT EXISTS Budgets (
     FOREIGN KEY (user_id) REFERENCES Users(id),
     FOREIGN KEY (category_id) REFERENCES Categories(id)
 );
+
+CREATE TABLE IF NOT EXISTS UserDevices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    platform ENUM('ios', 'android') NOT NULL,
+    last_seen_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_device_token (token),
+    FOREIGN KEY (user_id) REFERENCES Users(id)
+);
+
+CREATE TABLE IF NOT EXISTS NotificationPreferences (
+    user_id INT PRIMARY KEY,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    daily_time VARCHAR(5) NOT NULL DEFAULT '08:00',
+    timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Bangkok',
+    daily_reminder_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    daily_summary_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    budget_warning_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    last_daily_sent_on DATE NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(id)
+);

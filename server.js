@@ -8,6 +8,8 @@ const transactionRoutes = require('./routes/transactionRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const budgetRoutes = require('./routes/budgetRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const { startScheduler } = require('./services/notificationScheduler');
 
 dotenv.config();
 
@@ -47,12 +49,14 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/', (req, res) => {
   res.send('Personal Finance API is running');
 });
 
 if (require.main === module) {
+  startScheduler();
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });

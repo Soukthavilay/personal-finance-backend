@@ -40,6 +40,14 @@ exports.register = async (req, res) => {
     const values = defaultCategories.map((c) => [userId, c.name, c.type]);
     await db.query('INSERT INTO Categories (user_id, name, type) VALUES ?', [values]);
 
+    await db.execute(
+      `INSERT INTO NotificationPreferences
+        (user_id, enabled, daily_time, timezone, daily_reminder_enabled, daily_summary_enabled, budget_warning_enabled)
+       VALUES (?, 1, '08:00', 'Asia/Bangkok', 1, 1, 1)
+       ON DUPLICATE KEY UPDATE user_id = user_id`,
+      [userId]
+    );
+
     res.status(201).json({ message: 'User registered successfully' });
   } catch (error) {
     console.error(error);
@@ -89,7 +97,7 @@ exports.login = async (req, res) => {
       maxAge: 60 * 60 * 1000
     });
 
-    res.json({ user: { id: user.id, username: user.username, email: user.email } });
+    res.json({ user: { id: user.id, username: user.username, email: user.email }, token });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
