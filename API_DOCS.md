@@ -181,6 +181,14 @@ Response:
     "currency": "VND",
     "timezone": "Asia/Bangkok",
     "avatar_url": "...",
+    "monthly_income_target": 0,
+    "language": "vi",
+    "date_format": "YYYY-MM-DD",
+    "week_start_day": 1,
+    "phone": "...",
+    "gender": "male",
+    "dob": "1999-01-01",
+    "last_login_at": "...",
     "created_at": "..."
   }
 }
@@ -197,9 +205,25 @@ Body (send any subset):
   "full_name": "string|null",
   "currency": "VND",
   "timezone": "Asia/Bangkok",
-  "avatar_url": "https://..."
+  "avatar_url": "https://...",
+  "monthly_income_target": 10000000,
+  "language": "vi",
+  "date_format": "YYYY-MM-DD",
+  "week_start_day": 1,
+  "phone": "+84...",
+  "gender": "male",
+  "dob": "1999-01-01"
 }
 ```
+
+Validation notes:
+
+- `currency`: 3 uppercase letters (e.g. `VND`, `USD`)
+- `language`: `vi` or `en`
+- `date_format`: `YYYY-MM-DD`, `DD/MM/YYYY`, or `MM/DD/YYYY`
+- `week_start_day`: 1-7
+- `dob`: `YYYY-MM-DD`
+- `gender`: `male`, `female`, or `other`
 
 Notes:
 

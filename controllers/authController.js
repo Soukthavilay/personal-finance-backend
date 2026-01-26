@@ -240,6 +240,8 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    await db.execute('UPDATE Users SET last_login_at = NOW() WHERE id = ?', [user.id]);
+
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'your_jwt_secret', { expiresIn: '1h' });
 
     res.cookie('token', token, {

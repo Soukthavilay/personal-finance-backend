@@ -48,6 +48,22 @@ async function initDb() {
       }
     }
 
+    try {
+      await connection.query(`ALTER TABLE Users
+        ADD COLUMN monthly_income_target DECIMAL(12, 2) NULL,
+        ADD COLUMN language VARCHAR(5) NOT NULL DEFAULT 'vi',
+        ADD COLUMN date_format VARCHAR(32) NOT NULL DEFAULT 'YYYY-MM-DD',
+        ADD COLUMN week_start_day TINYINT NOT NULL DEFAULT 1,
+        ADD COLUMN phone VARCHAR(32) NULL,
+        ADD COLUMN gender VARCHAR(16) NULL,
+        ADD COLUMN dob DATE NULL,
+        ADD COLUMN last_login_at DATETIME NULL`);
+    } catch (err) {
+      if (!(err && (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060))) {
+        throw err;
+      }
+    }
+
     console.log('Database initialized successfully.');
   } catch (err) {
     console.error('Error initializing database:', err);

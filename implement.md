@@ -32,7 +32,7 @@ Optional:
 ## Database Schema (current)
 
 - **Users**
-  - `id`, `username`, `email`, `password_hash`, `full_name`, `currency`, `timezone`, `avatar_url`, `reset_password_token_hash`, `reset_password_expires_at`, `created_at`
+  - `id`, `username`, `email`, `password_hash`, `full_name`, `currency`, `timezone`, `avatar_url`, `monthly_income_target`, `language`, `date_format`, `week_start_day`, `phone`, `gender`, `dob`, `last_login_at`, `reset_password_token_hash`, `reset_password_expires_at`, `created_at`
 - **Categories (per-user)**
   - `id`, `user_id`, `name`, `type`, `created_at`
   - Unique: `(user_id, name, type)`
@@ -133,7 +133,7 @@ All require auth.
 - `GET /users/me`
   - Returns the current user's profile.
 - `PUT /users/me`
-  - Updates profile fields: `full_name`, `currency`, `timezone`, `avatar_url`.
+  - Updates profile fields: `full_name`, `currency`, `timezone`, `avatar_url`, `monthly_income_target`, `language`, `date_format`, `week_start_day`, `phone`, `gender`, `dob`.
 
 ## Security (current)
 

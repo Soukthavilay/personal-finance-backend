@@ -48,6 +48,22 @@ async function ensureSchema() {
         throw err;
       }
     }
+
+    try {
+      await conn.query(`ALTER TABLE Users
+        ADD COLUMN monthly_income_target DECIMAL(12, 2) NULL,
+        ADD COLUMN language VARCHAR(5) NOT NULL DEFAULT 'vi',
+        ADD COLUMN date_format VARCHAR(32) NOT NULL DEFAULT 'YYYY-MM-DD',
+        ADD COLUMN week_start_day TINYINT NOT NULL DEFAULT 1,
+        ADD COLUMN phone VARCHAR(32) NULL,
+        ADD COLUMN gender VARCHAR(16) NULL,
+        ADD COLUMN dob DATE NULL,
+        ADD COLUMN last_login_at DATETIME NULL`);
+    } catch (err) {
+      if (!(err && (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060))) {
+        throw err;
+      }
+    }
   } finally {
     await conn.end();
   }
@@ -174,15 +190,34 @@ describe('Personal Finance API - integration', () => {
 
     const meBefore = await agent.get('/api/users/me').expect(200);
     expect(meBefore.body && meBefore.body.user && meBefore.body.user.email).toBe(email);
+    expect(meBefore.body && meBefore.body.user && meBefore.body.user.last_login_at).toBeTruthy();
 
     const updateRes = await agent
       .put('/api/users/me')
       .set('x-csrf-token', csrfToken)
-      .send({ full_name: 'Test User', currency: 'USD', timezone: 'Asia/Bangkok' })
+      .send({
+        full_name: 'Test User',
+        currency: 'USD',
+        timezone: 'Asia/Bangkok',
+        monthly_income_target: 1000,
+        language: 'en',
+        date_format: 'DD/MM/YYYY',
+        week_start_day: 7,
+        phone: '+84123456789',
+        gender: 'male',
+        dob: '1999-01-01'
+      })
       .expect(200);
 
     expect(updateRes.body && updateRes.body.user && updateRes.body.user.full_name).toBe('Test User');
     expect(updateRes.body && updateRes.body.user && updateRes.body.user.currency).toBe('USD');
+    expect(updateRes.body && updateRes.body.user && updateRes.body.user.monthly_income_target).toBe('1000.00');
+    expect(updateRes.body && updateRes.body.user && updateRes.body.user.language).toBe('en');
+    expect(updateRes.body && updateRes.body.user && updateRes.body.user.date_format).toBe('DD/MM/YYYY');
+    expect(updateRes.body && updateRes.body.user && updateRes.body.user.week_start_day).toBe(7);
+    expect(updateRes.body && updateRes.body.user && updateRes.body.user.phone).toBe('+84123456789');
+    expect(updateRes.body && updateRes.body.user && updateRes.body.user.gender).toBe('male');
+    expect(updateRes.body && updateRes.body.user && updateRes.body.user.dob).toBe('1999-01-01');
   });
 
   test('CSRF: state-changing request without token is rejected; with token is accepted', async () => {

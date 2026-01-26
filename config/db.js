@@ -12,12 +12,16 @@ const user = process.env.DB_USER || 'root';
 const password = process.env.DB_PASSWORD || '';
 const database = process.env.DB_NAME || 'personal_finance';
 
+// Try socket first, fallback to TCP
+const socketPath = '/tmp/mysql.sock';
+
 const pool = mysql.createPool({
   host,
   port,
   user,
   password,
   database,
+  socketPath,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
