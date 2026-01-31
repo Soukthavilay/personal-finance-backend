@@ -13,7 +13,7 @@ const password = process.env.DB_PASSWORD || '';
 const database = process.env.DB_NAME || 'personal_finance';
 
 // Try socket first, fallback to TCP
-const socketPath = process.env.DB_SOCKET_PATH || '/tmp/mysql.sock';
+const socketPath = process.env.DB_SOCKET_PATH;
 
 const poolConfig = {
   host,
