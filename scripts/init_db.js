@@ -26,6 +26,46 @@ async function initDb() {
     console.log('Running schema.sql...');
     await connection.query(schemaSql);
 
+    // Ensure Wallets table exists for older DBs
+    await connection.query(`CREATE TABLE IF NOT EXISTS Wallets (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      type ENUM('cash', 'bank', 'credit') NOT NULL,
+      currency VARCHAR(3) NOT NULL,
+      balance DECIMAL(12, 2) NOT NULL DEFAULT 0,
+      is_default BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES Users(id)
+    )`);
+
+    try {
+      await connection.query('ALTER TABLE Transactions ADD COLUMN wallet_id INT NULL');
+    } catch (err) {
+      if (!(err && (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060))) {
+        throw err;
+      }
+    }
+
+    try {
+      await connection.query('ALTER TABLE Transactions ADD CONSTRAINT fk_transactions_wallet_id FOREIGN KEY (wallet_id) REFERENCES Wallets(id)');
+    } catch (err) {
+      if (
+        !(
+          err &&
+          (err.code === 'ER_CANT_CREATE_TABLE' ||
+            err.errno === 1005 ||
+            err.code === 'ER_DUP_KEYNAME' ||
+            err.errno === 1061 ||
+            err.code === 'ER_FK_DUP_NAME' ||
+            err.errno === 1826)
+        )
+      ) {
+        throw err;
+      }
+    }
+
     try {
       await connection.query(`ALTER TABLE Users
         ADD COLUMN reset_password_token_hash VARCHAR(64) NULL,

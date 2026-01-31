@@ -27,6 +27,45 @@ async function ensureSchema() {
     const schemaSql = fs.readFileSync(path.join(__dirname, '../schema.sql'), 'utf8');
     await conn.query(schemaSql);
 
+    await conn.query(`CREATE TABLE IF NOT EXISTS Wallets (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      type ENUM('cash', 'bank', 'credit') NOT NULL,
+      currency VARCHAR(3) NOT NULL,
+      balance DECIMAL(12, 2) NOT NULL DEFAULT 0,
+      is_default BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES Users(id)
+    )`);
+
+    try {
+      await conn.query('ALTER TABLE Transactions ADD COLUMN wallet_id INT NULL');
+    } catch (err) {
+      if (!(err && (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060))) {
+        throw err;
+      }
+    }
+
+    try {
+      await conn.query('ALTER TABLE Transactions ADD CONSTRAINT fk_transactions_wallet_id FOREIGN KEY (wallet_id) REFERENCES Wallets(id)');
+    } catch (err) {
+      if (
+        !(
+          err &&
+          (err.code === 'ER_CANT_CREATE_TABLE' ||
+            err.errno === 1005 ||
+            err.code === 'ER_DUP_KEYNAME' ||
+            err.errno === 1061 ||
+            err.code === 'ER_FK_DUP_NAME' ||
+            err.errno === 1826)
+        )
+      ) {
+        throw err;
+      }
+    }
+
     try {
       await conn.query(`ALTER TABLE Users
         ADD COLUMN reset_password_token_hash VARCHAR(64) NULL,
@@ -77,9 +116,12 @@ async function resetDb() {
     await conn.query(`USE \`${database}\``);
 
     await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+    await conn.query('TRUNCATE TABLE UserDevices');
+    await conn.query('TRUNCATE TABLE NotificationPreferences');
     await conn.query('TRUNCATE TABLE Transactions');
     await conn.query('TRUNCATE TABLE Budgets');
     await conn.query('TRUNCATE TABLE Categories');
+    await conn.query('TRUNCATE TABLE Wallets');
     await conn.query('TRUNCATE TABLE Users');
     await conn.query('SET FOREIGN_KEY_CHECKS = 1');
   } finally {
@@ -100,6 +142,28 @@ describe('Personal Finance API - integration', () => {
 
   beforeEach(async () => {
     await resetDb();
+  });
+
+  test('Wallets: register seeds a default wallet and GET /api/wallets returns it', async () => {
+    const agent = request.agent(app);
+
+    const email = 'u7@example.com';
+    const password = 'Password123!';
+
+    await agent
+      .post('/api/auth/register')
+      .send({ username: 'user7', email, password })
+      .expect(201);
+
+    await agent.post('/api/auth/login').send({ email, password }).expect(200);
+
+    const walletsRes = await agent.get('/api/wallets').expect(200);
+    expect(Array.isArray(walletsRes.body)).toBe(true);
+    expect(walletsRes.body.length).toBe(1);
+    expect(walletsRes.body[0].name).toBe('Cash');
+    expect(walletsRes.body[0].type).toBe('cash');
+    expect(walletsRes.body[0].currency).toBe('VND');
+    expect(walletsRes.body[0].is_default).toBe(1);
   });
 
   test('Auth cookie flow: login sets cookie, /me works, logout clears cookie', async () => {
@@ -259,6 +323,9 @@ describe('Personal Finance API - integration', () => {
 
     await agent.post('/api/auth/login').send({ email, password }).expect(200);
 
+    const walletsRes = await agent.get('/api/wallets').expect(200);
+    const walletId = walletsRes.body[0].id;
+
     const csrfRes = await agent.get('/api/auth/csrf').expect(200);
     const csrfToken = csrfRes.body.csrfToken;
 
@@ -273,13 +340,13 @@ describe('Personal Finance API - integration', () => {
     await agent
       .post('/api/transactions')
       .set('x-csrf-token', csrfToken)
-      .send({ category_id: categoryId, amount: 10.5, transaction_date: '2026-01-01', description: 't1' })
+      .send({ category_id: categoryId, wallet_id: walletId, amount: 10.5, transaction_date: '2026-01-01', description: 't1' })
       .expect(201);
 
     await agent
       .post('/api/transactions')
       .set('x-csrf-token', csrfToken)
-      .send({ category_id: categoryId, amount: 20.5, transaction_date: '2026-01-02', description: 't2' })
+      .send({ category_id: categoryId, wallet_id: walletId, amount: 20.5, transaction_date: '2026-01-02', description: 't2' })
       .expect(201);
 
     const page1 = await agent.get('/api/transactions?limit=1&offset=0').expect(200);
@@ -306,6 +373,9 @@ describe('Personal Finance API - integration', () => {
 
     await agent.post('/api/auth/login').send({ email, password }).expect(200);
 
+    const walletsRes = await agent.get('/api/wallets').expect(200);
+    const walletId = walletsRes.body[0].id;
+
     const csrfRes = await agent.get('/api/auth/csrf').expect(200);
     const csrfToken = csrfRes.body.csrfToken;
 
@@ -320,7 +390,7 @@ describe('Personal Finance API - integration', () => {
     await agent
       .post('/api/transactions')
       .set('x-csrf-token', csrfToken)
-      .send({ category_id: categoryId, amount: 15, transaction_date: '2026-01-03', description: 'uses category' })
+      .send({ category_id: categoryId, wallet_id: walletId, amount: 15, transaction_date: '2026-01-03', description: 'uses category' })
       .expect(201);
 
     const delRes = await agent

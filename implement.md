@@ -33,11 +33,13 @@ Optional:
 
 - **Users**
   - `id`, `username`, `email`, `password_hash`, `full_name`, `currency`, `timezone`, `avatar_url`, `monthly_income_target`, `language`, `date_format`, `week_start_day`, `phone`, `gender`, `dob`, `last_login_at`, `reset_password_token_hash`, `reset_password_expires_at`, `created_at`
+- **Wallets (per-user)**
+  - `id`, `user_id`, `name`, `type`, `currency`, `balance`, `is_default`, `created_at`, `updated_at`
 - **Categories (per-user)**
   - `id`, `user_id`, `name`, `type`, `created_at`
   - Unique: `(user_id, name, type)`
 - **Transactions**
-  - `id`, `user_id`, `category_id`, `amount`, `transaction_date`, `description`, `created_at`
+  - `id`, `user_id`, `category_id`, `wallet_id`, `amount`, `transaction_date`, `description`, `created_at`
 - **Budgets**
   - `id`, `user_id`, `category_id`, `amount`, `period`, `created_at`
 
@@ -96,6 +98,7 @@ All require auth.
     - `startDate`, `endDate`
     - `categoryId` (preferred)
     - `categoryStr` (deprecated alias)
+    - `walletId` / `wallet_id`
   - Pagination:
     - `limit` (default 50, max 200)
     - `offset` (default 0)
@@ -103,9 +106,25 @@ All require auth.
   - Returns transaction detail for current user.
 - `POST /transactions`
   - Validates category belongs to current user.
+  - Requires `wallet_id` and validates wallet belongs to current user.
 - `PUT /transactions/:id`
   - Validates category belongs to current user.
+  - Requires `wallet_id` and validates wallet belongs to current user.
 - `DELETE /transactions/:id`
+
+### Wallets
+
+All require auth.
+
+- `GET /wallets`
+  - Returns wallets owned by current user.
+- `POST /wallets`
+  - Creates wallet for current user.
+  - Defaults `currency` to `Users.currency` if omitted.
+- `PUT /wallets/:id`
+  - Updates wallet only if owned by current user.
+- `DELETE /wallets/:id`
+  - Prevents deletion if wallet is referenced by Transactions.
 
 ### Budgets
 

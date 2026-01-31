@@ -50,6 +50,10 @@ This runs `schema.sql` to create DB + tables:
 npm run init-db
 ```
 
+Notes:
+
+- This script is safe to run multiple times (idempotent). It will create missing tables/columns and ignore duplicate constraint errors.
+
 ### 4) Run the backend (nodemon)
 
 ```bash
@@ -83,6 +87,7 @@ Personal Finance API is running
 Notes:
 
 - Registering a new user seeds a default set of categories for that user.
+- Registering a new user also seeds a default wallet (`Cash`) for that user.
 
 If you call the API from a browser-based frontend, make sure to send credentials:
 
@@ -108,11 +113,30 @@ CORS_ORIGIN=http://localhost:8081
 
 ## Transactions
 
-- `GET /api/transactions?limit=&offset=&startDate=&endDate=&categoryId=&categoryStr=`
+- `GET /api/transactions?limit=&offset=&startDate=&endDate=&categoryId=&categoryStr=&walletId=&wallet_id=`
   - Pagination:
     - `limit` default 50 (max 200)
     - `offset` default 0
 - `GET /api/transactions/:id`
+
+Notes:
+
+- `wallet_id` is required when creating/updating transactions.
+
+## Wallets
+
+- `GET /api/wallets`
+- `POST /api/wallets`
+- `PUT /api/wallets/:id`
+- `DELETE /api/wallets/:id`
+
+Notes:
+
+- If a wallet is referenced by any transaction, deleting it will return `400`.
+
+## Startup
+
+- On server startup, the backend verifies the MySQL connection and logs `Connected to MySQL` if successful.
 
 ## Troubleshooting
 

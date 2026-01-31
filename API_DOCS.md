@@ -73,6 +73,7 @@ Responses:
 Notes:
 
 - On successful registration, the backend seeds a default set of income/expense categories for the new user.
+- On successful registration, the backend also seeds a default wallet (Cash) for the new user.
 
 Rate limiting:
 
@@ -295,6 +296,97 @@ Notes:
 
 All endpoints below: Auth required.
 
+---
+
+## Wallets (per-user)
+
+All endpoints below: Auth required.
+
+### List wallets
+
+`GET /api/wallets`
+
+Response:
+
+- `200`
+
+```json
+[
+  {
+    "id": 1,
+    "user_id": 1,
+    "name": "Cash",
+    "type": "cash",
+    "currency": "VND",
+    "balance": "0.00",
+    "is_default": 1,
+    "created_at": "...",
+    "updated_at": "..."
+  }
+]
+```
+
+### Create wallet
+
+`POST /api/wallets`
+
+Body:
+
+```json
+{
+  "name": "Bank",
+  "type": "bank",
+  "currency": "VND",
+  "balance": 0,
+  "is_default": false
+}
+```
+
+Responses:
+
+- `201` returns the created wallet
+
+Notes:
+
+- If `currency` is omitted, it defaults to the user's `Users.currency`.
+- If `is_default=true`, the backend unsets `is_default` on other wallets of the same user.
+
+### Update wallet
+
+`PUT /api/wallets/:id`
+
+Body (partial allowed):
+
+```json
+{
+  "name": "Cash",
+  "balance": 1000000,
+  "is_default": true
+}
+```
+
+Response:
+
+- `200` returns the updated wallet
+
+### Delete wallet
+
+`DELETE /api/wallets/:id`
+
+Responses:
+
+- `200`
+
+```json
+{ "message": "Wallet deleted" }
+```
+
+- `400` if wallet is in use by transactions
+
+```json
+{ "message": "Wallet is in use by transactions and cannot be deleted" }
+```
+
 ### List categories
 
 `GET /api/categories`
@@ -409,6 +501,8 @@ Query params:
 - `endDate` (optional, requires `startDate`) - format `YYYY-MM-DD`
 - `categoryId` (optional) - category id
 - `categoryStr` (optional) - deprecated alias of `categoryId`
+- `walletId` (optional) - wallet id
+- `wallet_id` (optional) - alias of `walletId`
 - `limit` (optional) - default `50`, max `200`
 - `offset` (optional) - default `0`
 
@@ -422,12 +516,16 @@ Response:
     "id": 1,
     "user_id": 1,
     "category_id": 2,
+    "wallet_id": 1,
     "amount": "100.00",
     "transaction_date": "2026-01-22",
     "description": "Lunch",
     "created_at": "...",
     "category_name": "Food",
-    "category_type": "expense"
+    "category_type": "expense",
+    "wallet_name": "Cash",
+    "wallet_type": "cash",
+    "wallet_currency": "VND"
   }
 ]
 ```
@@ -445,12 +543,16 @@ Responses:
   "id": 1,
   "user_id": 1,
   "category_id": 2,
+  "wallet_id": 1,
   "amount": "100.00",
   "transaction_date": "2026-01-22",
   "description": "Lunch",
   "created_at": "...",
   "category_name": "Food",
-  "category_type": "expense"
+  "category_type": "expense",
+  "wallet_name": "Cash",
+  "wallet_type": "cash",
+  "wallet_currency": "VND"
 }
 ```
 
@@ -469,6 +571,7 @@ Body:
 ```json
 {
   "category_id": 2,
+  "wallet_id": 1,
   "amount": 100,
   "transaction_date": "2026-01-22",
   "description": "Lunch"
@@ -484,6 +587,7 @@ Responses:
   "id": 1,
   "user_id": 1,
   "category_id": 2,
+  "wallet_id": 1,
   "amount": 100,
   "transaction_date": "2026-01-22",
   "description": "Lunch"
@@ -698,6 +802,8 @@ Query params:
 
 - `month` (optional)
 - `year` (optional)
+- `walletId` (optional) - wallet id
+- `wallet_id` (optional) - alias of `walletId`
 
 Response:
 

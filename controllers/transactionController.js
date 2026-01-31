@@ -1,7 +1,7 @@
 const db = require('../config/db');
 
 exports.getAllTransactions = async (req, res) => {
-  const { startDate, endDate, categoryId, categoryStr, limit, offset } = req.query;
+  const { startDate, endDate, categoryId, categoryStr, walletId, wallet_id, limit, offset } = req.query;
   const userId = req.user.id;
 
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -18,10 +18,13 @@ exports.getAllTransactions = async (req, res) => {
   const pageOffset = Math.max(Number.isFinite(parsedOffset) ? parsedOffset : 0, 0);
 
   const categoryFilter = categoryId || categoryStr;
+  const walletFilter = walletId || wallet_id;
 
-  let query = `SELECT t.*, c.name AS category_name, c.type AS category_type
+  let query = `SELECT t.*, c.name AS category_name, c.type AS category_type,
+                w.name AS wallet_name, w.type AS wallet_type, w.currency AS wallet_currency
                FROM Transactions t
                LEFT JOIN Categories c ON t.category_id = c.id AND c.user_id = t.user_id
+               LEFT JOIN Wallets w ON t.wallet_id = w.id AND w.user_id = t.user_id
                WHERE t.user_id = ?`;
   let params = [userId];
 
@@ -33,6 +36,11 @@ exports.getAllTransactions = async (req, res) => {
   if (categoryFilter) {
       query += ' AND t.category_id = ?';
       params.push(categoryFilter);
+  }
+
+  if (walletFilter) {
+    query += ' AND t.wallet_id = ?';
+    params.push(walletFilter);
   }
 
   query += ` ORDER BY t.transaction_date DESC LIMIT ${pageLimit} OFFSET ${pageOffset}`;
@@ -52,9 +60,11 @@ exports.getTransactionById = async (req, res) => {
 
   try {
     const [transactions] = await db.execute(
-      `SELECT t.*, c.name AS category_name, c.type AS category_type
+      `SELECT t.*, c.name AS category_name, c.type AS category_type,
+        w.name AS wallet_name, w.type AS wallet_type, w.currency AS wallet_currency
        FROM Transactions t
        LEFT JOIN Categories c ON t.category_id = c.id AND c.user_id = t.user_id
+       LEFT JOIN Wallets w ON t.wallet_id = w.id AND w.user_id = t.user_id
        WHERE t.id = ? AND t.user_id = ?`,
       [id, userId]
     );
@@ -71,14 +81,23 @@ exports.getTransactionById = async (req, res) => {
 };
 
 exports.createTransaction = async (req, res) => {
-  const { category_id, amount, transaction_date, description } = req.body;
+  const { category_id, wallet_id, amount, transaction_date, description } = req.body;
   const userId = req.user.id;
 
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
   const numericAmount = Number(amount);
 
+  if (!wallet_id) {
+    return res.status(400).json({ message: 'wallet_id is required' });
+  }
+
   if (!category_id || !amount || !transaction_date) {
     return res.status(400).json({ message: 'Category, amount, and date are required' });
+  }
+
+  const walletIdNum = Number(wallet_id);
+  if (!Number.isInteger(walletIdNum) || walletIdNum <= 0) {
+    return res.status(400).json({ message: 'Invalid wallet_id' });
   }
 
   if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
@@ -97,11 +116,16 @@ exports.createTransaction = async (req, res) => {
       }
     }
 
+    const [wallets] = await db.execute('SELECT id FROM Wallets WHERE id = ? AND user_id = ?', [walletIdNum, userId]);
+    if (wallets.length === 0) {
+      return res.status(400).json({ message: 'Invalid wallet_id' });
+    }
+
     const [result] = await db.execute(
-      'INSERT INTO Transactions (user_id, category_id, amount, transaction_date, description) VALUES (?, ?, ?, ?, ?)',
-      [userId, category_id, numericAmount, transaction_date, description]
+      'INSERT INTO Transactions (user_id, category_id, wallet_id, amount, transaction_date, description) VALUES (?, ?, ?, ?, ?, ?)',
+      [userId, category_id, walletIdNum, numericAmount, transaction_date, description]
     );
-    res.status(201).json({ id: result.insertId, user_id: userId, category_id, amount, transaction_date, description });
+    res.status(201).json({ id: result.insertId, user_id: userId, category_id, wallet_id: walletIdNum, amount, transaction_date, description });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -110,11 +134,20 @@ exports.createTransaction = async (req, res) => {
 
 exports.updateTransaction = async (req, res) => {
   const { id } = req.params;
-  const { category_id, amount, transaction_date, description } = req.body;
+  const { category_id, wallet_id, amount, transaction_date, description } = req.body;
   const userId = req.user.id;
 
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
   const numericAmount = Number(amount);
+
+  if (!wallet_id) {
+    return res.status(400).json({ message: 'wallet_id is required' });
+  }
+
+  const walletIdNum = Number(wallet_id);
+  if (!Number.isInteger(walletIdNum) || walletIdNum <= 0) {
+    return res.status(400).json({ message: 'Invalid wallet_id' });
+  }
 
   if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
     return res.status(400).json({ message: 'Invalid amount' });
@@ -132,9 +165,14 @@ exports.updateTransaction = async (req, res) => {
       }
     }
 
+    const [wallets] = await db.execute('SELECT id FROM Wallets WHERE id = ? AND user_id = ?', [walletIdNum, userId]);
+    if (wallets.length === 0) {
+      return res.status(400).json({ message: 'Invalid wallet_id' });
+    }
+
     const [result] = await db.execute(
-      'UPDATE Transactions SET category_id = ?, amount = ?, transaction_date = ?, description = ? WHERE id = ? AND user_id = ?',
-      [category_id, numericAmount, transaction_date, description, id, userId]
+      'UPDATE Transactions SET category_id = ?, wallet_id = ?, amount = ?, transaction_date = ?, description = ? WHERE id = ? AND user_id = ?',
+      [category_id, walletIdNum, numericAmount, transaction_date, description, id, userId]
     );
 
     if (result.affectedRows === 0) {

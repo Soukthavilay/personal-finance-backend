@@ -23,6 +23,19 @@ CREATE TABLE IF NOT EXISTS Users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS Wallets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type ENUM('cash', 'bank', 'credit') NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    balance DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(id)
+);
+
 CREATE TABLE IF NOT EXISTS Categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -37,12 +50,14 @@ CREATE TABLE IF NOT EXISTS Transactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     category_id INT,
+    wallet_id INT,
     amount DECIMAL(10, 2) NOT NULL,
     transaction_date DATE NOT NULL,
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES Users(id),
-    FOREIGN KEY (category_id) REFERENCES Categories(id)
+    FOREIGN KEY (category_id) REFERENCES Categories(id),
+    FOREIGN KEY (wallet_id) REFERENCES Wallets(id)
 );
 
 CREATE TABLE IF NOT EXISTS Budgets (

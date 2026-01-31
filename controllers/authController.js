@@ -92,6 +92,14 @@ exports.register = async (req, res) => {
     await db.query('INSERT INTO Categories (user_id, name, type) VALUES ?', [values]);
 
     await db.execute(
+      `INSERT INTO Wallets (user_id, name, type, currency, balance, is_default)
+       SELECT id, 'Cash', 'cash', currency, 0, 1
+       FROM Users
+       WHERE id = ?`,
+      [userId]
+    );
+
+    await db.execute(
       `INSERT INTO NotificationPreferences
         (user_id, enabled, daily_time, timezone, daily_reminder_enabled, daily_summary_enabled, budget_warning_enabled)
        VALUES (?, 1, '08:00', 'Asia/Bangkok', 1, 1, 1)
