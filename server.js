@@ -11,11 +11,12 @@ const reportRoutes = require('./routes/reportRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const userRoutes = require('./routes/userRoutes');
 const { startScheduler } = require('./services/notificationScheduler');
+const db = require('./config/db');
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8085;
 
 const jsonParser = express.json();
 app.use((req, res, next) => {
@@ -63,11 +64,20 @@ app.get('/', (req, res) => {
   res.send('Personal Finance API is running');
 });
 
-if (require.main === module) {
-  startScheduler();
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-}
-
 module.exports = app;
+
+// Test MySQL connection on startup and start server only if successful
+(async () => {
+  try {
+    await db.testConnection();
+    if (require.main === module) {
+      startScheduler();
+      app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+      });
+    }
+  } catch (err) {
+    console.error('Server startup aborted due to MySQL connection failure.');
+    process.exit(1);
+  }
+})();

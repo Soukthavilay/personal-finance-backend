@@ -30,4 +30,18 @@ const pool = mysql.createPool({
 const promisePool = pool.promise();
 promisePool.end = pool.end.bind(pool);
 
+// Test connection and log result
+async function testConnection() {
+  try {
+    const connection = await promisePool.getConnection();
+    await connection.ping();
+    connection.release();
+    console.log('Connected to MySQL');
+  } catch (err) {
+    console.error('MySQL connection failed:', err.message);
+    throw err;
+  }
+}
+
 module.exports = promisePool;
+module.exports.testConnection = testConnection;
