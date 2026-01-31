@@ -13,19 +13,24 @@ const password = process.env.DB_PASSWORD || '';
 const database = process.env.DB_NAME || 'personal_finance';
 
 // Try socket first, fallback to TCP
-const socketPath = '/tmp/mysql.sock';
+const socketPath = process.env.DB_SOCKET_PATH || '/tmp/mysql.sock';
 
-const pool = mysql.createPool({
+const poolConfig = {
   host,
   port,
   user,
   password,
   database,
-  socketPath,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
-});
+};
+
+if (socketPath) {
+  poolConfig.socketPath = socketPath;
+}
+
+const pool = mysql.createPool(poolConfig);
 
 const promisePool = pool.promise();
 promisePool.end = pool.end.bind(pool);
