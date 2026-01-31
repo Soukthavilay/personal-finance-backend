@@ -32,7 +32,7 @@ exports.getDashboardStats = async (req, res) => {
 
     // Total Income
     const [incomeResult] = await db.execute(
-        `SELECT SUM(t.amount) as total FROM Transactions t 
+        `SELECT COALESCE(SUM(t.amount), 0) as total FROM Transactions t 
          JOIN Categories c ON t.category_id = c.id 
          WHERE t.user_id = ? AND c.user_id = t.user_id AND c.type = 'income' ${walletFilter} ${dateFilter}`, 
          params
@@ -40,7 +40,7 @@ exports.getDashboardStats = async (req, res) => {
 
     // Total Expense
     const [expenseResult] = await db.execute(
-        `SELECT SUM(t.amount) as total FROM Transactions t 
+        `SELECT COALESCE(SUM(t.amount), 0) as total FROM Transactions t 
          JOIN Categories c ON t.category_id = c.id 
          WHERE t.user_id = ? AND c.user_id = t.user_id AND c.type = 'expense' ${walletFilter} ${dateFilter}`,
          params
@@ -55,10 +55,13 @@ exports.getDashboardStats = async (req, res) => {
          params
     );
 
+    const income = Number(incomeResult && incomeResult[0] && incomeResult[0].total) || 0;
+    const expense = Number(expenseResult && expenseResult[0] && expenseResult[0].total) || 0;
+
     res.json({
-        income: incomeResult[0].total || 0,
-        expense: expenseResult[0].total || 0,
-        balance: (incomeResult[0].total || 0) - (expenseResult[0].total || 0),
+        income,
+        expense,
+        balance: income - expense,
         categoryStats
     });
 

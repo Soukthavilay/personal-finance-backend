@@ -41,7 +41,7 @@ Optional:
 - **Transactions**
   - `id`, `user_id`, `category_id`, `wallet_id`, `amount`, `transaction_date`, `description`, `created_at`
 - **Budgets**
-  - `id`, `user_id`, `category_id`, `amount`, `period`, `created_at`
+  - `id`, `user_id`, `wallet_id`, `category_id`, `amount`, `period`, `created_at`
 
 Notes:
 
@@ -131,10 +131,13 @@ All require auth.
 All require auth.
 
 - `GET /budgets?period=...`
+- `GET /budgets?period=...&walletId=...&wallet_id=...`
 - `POST /budgets`
   - Validates category belongs to current user.
+  - Requires `wallet_id` and validates wallet belongs to current user.
 - `PUT /budgets/:id`
   - Allows updating `amount` and optionally `category_id`.
+  - Requires `wallet_id` and validates wallet belongs to current user.
 - `DELETE /budgets/:id`
 
 ### Reports

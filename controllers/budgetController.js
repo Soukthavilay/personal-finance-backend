@@ -2,10 +2,22 @@ const db = require('../config/db');
 
 exports.getAllBudgets = async (req, res) => {
   const userId = req.user.id;
-  const { period } = req.query;
+  const { period, walletId, wallet_id } = req.query;
 
-  let query = 'SELECT b.*, c.name as category_name FROM Budgets b JOIN Categories c ON b.category_id = c.id AND c.user_id = b.user_id WHERE b.user_id = ?';
+  let query =
+    'SELECT b.*, c.name as category_name FROM Budgets b JOIN Categories c ON b.category_id = c.id AND c.user_id = b.user_id WHERE b.user_id = ?';
   let params = [userId];
+
+  const walletFilterValue = walletId || wallet_id;
+  if (walletFilterValue !== undefined) {
+    const walletIdNum = Number(walletFilterValue);
+    if (!Number.isInteger(walletIdNum) || walletIdNum <= 0) {
+      return res.status(400).json({ message: 'Invalid wallet_id' });
+    }
+
+    query += ' AND b.wallet_id = ?';
+    params.push(walletIdNum);
+  }
 
   if (period) {
     query += ' AND b.period = ?';
@@ -23,13 +35,22 @@ exports.getAllBudgets = async (req, res) => {
 
 exports.createBudget = async (req, res) => {
   const userId = req.user.id;
-  const { category_id, amount, period } = req.body;
+  const { category_id, wallet_id, amount, period } = req.body;
 
   const numericAmount = Number(amount);
   const periodRegex = /^\d{4}-\d{2}$/;
 
+  if (!wallet_id) {
+    return res.status(400).json({ message: 'wallet_id is required' });
+  }
+
   if (!category_id || !amount || !period) {
     return res.status(400).json({ message: 'Category, amount, and period are required' });
+  }
+
+  const walletIdNum = Number(wallet_id);
+  if (!Number.isInteger(walletIdNum) || walletIdNum <= 0) {
+    return res.status(400).json({ message: 'Invalid wallet_id' });
   }
 
   if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
@@ -46,10 +67,15 @@ exports.createBudget = async (req, res) => {
       return res.status(400).json({ message: 'Invalid category' });
     }
 
+    const [wallets] = await db.execute('SELECT id FROM Wallets WHERE id = ? AND user_id = ?', [walletIdNum, userId]);
+    if (wallets.length === 0) {
+      return res.status(400).json({ message: 'Invalid wallet' });
+    }
+
     // Check if budget already exists for this category and period
     const [existing] = await db.execute(
-      'SELECT * FROM Budgets WHERE user_id = ? AND category_id = ? AND period = ?',
-      [userId, category_id, period]
+      'SELECT * FROM Budgets WHERE user_id = ? AND wallet_id = ? AND category_id = ? AND period = ?',
+      [userId, walletIdNum, category_id, period]
     );
 
     if (existing.length > 0) {
@@ -57,11 +83,14 @@ exports.createBudget = async (req, res) => {
     }
 
     const [result] = await db.execute(
-      'INSERT INTO Budgets (user_id, category_id, amount, period) VALUES (?, ?, ?, ?)',
-      [userId, category_id, numericAmount, period]
+      'INSERT INTO Budgets (user_id, wallet_id, category_id, amount, period) VALUES (?, ?, ?, ?, ?)',
+      [userId, walletIdNum, category_id, numericAmount, period]
     );
-    res.status(201).json({ id: result.insertId, user_id: userId, category_id, amount, period });
+    res.status(201).json({ id: result.insertId, user_id: userId, wallet_id: walletIdNum, category_id, amount, period });
   } catch (error) {
+    if (error && error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ message: 'Budget already exists for this category and period' });
+    }
     console.error(error);
     res.status(500).json({ message: 'Server error' });
   }
@@ -70,9 +99,18 @@ exports.createBudget = async (req, res) => {
 exports.updateBudget = async (req, res) => {
   const userId = req.user.id;
   const { id } = req.params;
-  const { amount, category_id } = req.body;
+  const { amount, category_id, wallet_id } = req.body;
 
   const numericAmount = Number(amount);
+
+  if (!wallet_id) {
+    return res.status(400).json({ message: 'wallet_id is required' });
+  }
+
+  const walletIdNum = Number(wallet_id);
+  if (!Number.isInteger(walletIdNum) || walletIdNum <= 0) {
+    return res.status(400).json({ message: 'Invalid wallet_id' });
+  }
 
   if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
     return res.status(400).json({ message: 'Invalid amount' });
@@ -86,9 +124,14 @@ exports.updateBudget = async (req, res) => {
       }
     }
 
+    const [wallets] = await db.execute('SELECT id FROM Wallets WHERE id = ? AND user_id = ?', [walletIdNum, userId]);
+    if (wallets.length === 0) {
+      return res.status(400).json({ message: 'Invalid wallet' });
+    }
+
     const [result] = await db.execute(
-      'UPDATE Budgets SET amount = ?, category_id = COALESCE(?, category_id) WHERE id = ? AND user_id = ?',
-      [numericAmount, category_id, id, userId]
+      'UPDATE Budgets SET amount = ?, wallet_id = ?, category_id = COALESCE(?, category_id) WHERE id = ? AND user_id = ?',
+      [numericAmount, walletIdNum, category_id, id, userId]
     );
 
     if (result.affectedRows === 0) {
@@ -97,6 +140,9 @@ exports.updateBudget = async (req, res) => {
 
     res.json({ message: 'Budget updated' });
   } catch (error) {
+    if (error && error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ message: 'Budget already exists for this category and period' });
+    }
     console.error(error);
     res.status(500).json({ message: 'Server error' });
   }

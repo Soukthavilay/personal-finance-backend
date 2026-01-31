@@ -64,11 +64,14 @@ CREATE TABLE IF NOT EXISTS Budgets (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     category_id INT NOT NULL,
+    wallet_id INT NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
     period VARCHAR(10) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_wallet_budget (user_id, wallet_id, category_id, period),
     FOREIGN KEY (user_id) REFERENCES Users(id),
-    FOREIGN KEY (category_id) REFERENCES Categories(id)
+    FOREIGN KEY (category_id) REFERENCES Categories(id),
+    FOREIGN KEY (wallet_id) REFERENCES Wallets(id)
 );
 
 CREATE TABLE IF NOT EXISTS UserDevices (

@@ -690,6 +690,8 @@ All endpoints below: Auth required.
 Query params:
 
 - `period` (optional)
+- `walletId` (optional) - wallet id
+- `wallet_id` (optional) - alias of `walletId`
 
 Response:
 
@@ -701,6 +703,7 @@ Response:
     "id": 1,
     "user_id": 1,
     "category_id": 2,
+    "wallet_id": 1,
     "amount": "1000.00",
     "period": "2026-01",
     "created_at": "...",
@@ -718,6 +721,7 @@ Body:
 ```json
 {
   "category_id": 2,
+  "wallet_id": 1,
   "amount": 1000,
   "period": "2026-01"
 }
@@ -728,7 +732,14 @@ Responses:
 - `201`
 
 ```json
-{ "id": 1, "user_id": 1, "category_id": 2, "amount": 1000, "period": "2026-01" }
+{
+  "id": 1,
+  "user_id": 1,
+  "wallet_id": 1,
+  "category_id": 2,
+  "amount": 1000,
+  "period": "2026-01"
+}
 ```
 
 - `400`
@@ -751,6 +762,7 @@ Body:
 
 ```json
 {
+  "wallet_id": 1,
   "amount": 1500,
   "category_id": 2
 }

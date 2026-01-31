@@ -40,6 +40,14 @@ async function ensureSchema() {
       FOREIGN KEY (user_id) REFERENCES Users(id)
     )`);
 
+    await conn.query(
+      `INSERT INTO Wallets (user_id, name, type, currency, balance, is_default)
+       SELECT u.id, 'Cash', 'cash', u.currency, 0, 1
+       FROM Users u
+       LEFT JOIN Wallets w ON w.user_id = u.id
+       WHERE w.id IS NULL`
+    );
+
     try {
       await conn.query('ALTER TABLE Transactions ADD COLUMN wallet_id INT NULL');
     } catch (err) {
@@ -62,6 +70,55 @@ async function ensureSchema() {
             err.errno === 1826)
         )
       ) {
+        throw err;
+      }
+    }
+
+    try {
+      await conn.query('ALTER TABLE Budgets ADD COLUMN wallet_id INT NULL');
+    } catch (err) {
+      if (!(err && (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060))) {
+        throw err;
+      }
+    }
+
+    await conn.query(
+      `UPDATE Budgets b
+       JOIN Wallets w ON w.user_id = b.user_id AND w.is_default = 1
+       SET b.wallet_id = w.id
+       WHERE b.wallet_id IS NULL`
+    );
+
+    try {
+      await conn.query('ALTER TABLE Budgets MODIFY wallet_id INT NOT NULL');
+    } catch (err) {
+      if (!(err && (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060))) {
+        throw err;
+      }
+    }
+
+    try {
+      await conn.query('ALTER TABLE Budgets ADD CONSTRAINT fk_budgets_wallet_id FOREIGN KEY (wallet_id) REFERENCES Wallets(id)');
+    } catch (err) {
+      if (
+        !(
+          err &&
+          (err.code === 'ER_CANT_CREATE_TABLE' ||
+            err.errno === 1005 ||
+            err.code === 'ER_DUP_KEYNAME' ||
+            err.errno === 1061 ||
+            err.code === 'ER_FK_DUP_NAME' ||
+            err.errno === 1826)
+        )
+      ) {
+        throw err;
+      }
+    }
+
+    try {
+      await conn.query('ALTER TABLE Budgets ADD CONSTRAINT unique_user_wallet_budget UNIQUE (user_id, wallet_id, category_id, period)');
+    } catch (err) {
+      if (!(err && (err.code === 'ER_DUP_KEYNAME' || err.errno === 1061))) {
         throw err;
       }
     }
