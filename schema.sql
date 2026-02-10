@@ -61,6 +61,21 @@ CREATE TABLE IF NOT EXISTS Transactions (
     FOREIGN KEY (wallet_id) REFERENCES Wallets(id)
 );
 
+CREATE TABLE IF NOT EXISTS Transfers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    from_wallet_id INT NOT NULL,
+    to_wallet_id INT NOT NULL,
+    amount DECIMAL(12, 2) NOT NULL,
+    transfer_date DATE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(id),
+    FOREIGN KEY (from_wallet_id) REFERENCES Wallets(id),
+    FOREIGN KEY (to_wallet_id) REFERENCES Wallets(id)
+);
+
 CREATE TABLE IF NOT EXISTS Budgets (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,

@@ -11,6 +11,7 @@ const reportRoutes = require('./routes/reportRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const userRoutes = require('./routes/userRoutes');
 const walletRoutes = require('./routes/walletRoutes');
+const transferRoutes = require('./routes/transferRoutes');
 const { startScheduler } = require('./services/notificationScheduler');
 const db = require('./config/db');
 
@@ -61,6 +62,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/wallets', walletRoutes);
+app.use('/api/transfers', transferRoutes);
 
 app.get('/', (req, res) => {
   res.send('Personal Finance API is running');
