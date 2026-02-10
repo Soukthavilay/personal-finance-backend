@@ -33,6 +33,7 @@ async function initDb() {
       name VARCHAR(255) NOT NULL,
       type ENUM('cash', 'bank', 'credit') NOT NULL,
       currency VARCHAR(3) NOT NULL,
+      opening_balance DECIMAL(12, 2) NOT NULL DEFAULT 0,
       balance DECIMAL(12, 2) NOT NULL DEFAULT 0,
       is_default BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -40,10 +41,28 @@ async function initDb() {
       FOREIGN KEY (user_id) REFERENCES Users(id)
     )`);
 
+    // Add opening_balance for existing DBs (idempotent)
+    try {
+      await connection.query('ALTER TABLE Wallets ADD COLUMN opening_balance DECIMAL(12, 2) NOT NULL DEFAULT 0');
+    } catch (err) {
+      if (!(err && (err.code === 'ER_DUP_FIELDNAME' || err.errno === 1060))) {
+        throw err;
+      }
+    }
+
+    // Backfill opening_balance for existing rows (safe heuristic).
+    // Only wallets with NO transactions can safely treat Wallets.balance as opening_balance.
+    await connection.query(
+      `UPDATE Wallets w
+       LEFT JOIN Transactions t ON t.wallet_id = w.id AND t.user_id = w.user_id
+       SET w.opening_balance = w.balance
+       WHERE w.opening_balance = 0 AND w.balance <> 0 AND t.id IS NULL`
+    );
+
     // Ensure every existing user has at least one default wallet (for backfilling budgets/transactions)
     await connection.query(
-      `INSERT INTO Wallets (user_id, name, type, currency, balance, is_default)
-       SELECT u.id, 'Cash', 'cash', u.currency, 0, 1
+      `INSERT INTO Wallets (user_id, name, type, currency, opening_balance, balance, is_default)
+       SELECT u.id, 'Cash', 'cash', u.currency, 0, 0, 1
        FROM Users u
        LEFT JOIN Wallets w ON w.user_id = u.id
        WHERE w.id IS NULL`

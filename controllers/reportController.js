@@ -10,8 +10,9 @@ exports.getDashboardStats = async (req, res) => {
     let params = [userId];
 
     const walletFilterValue = walletId || wallet_id;
+    let walletIdNum;
     if (walletFilterValue !== undefined) {
-      const walletIdNum = Number(walletFilterValue);
+      walletIdNum = Number(walletFilterValue);
       if (!Number.isInteger(walletIdNum) || walletIdNum <= 0) {
         return res.status(400).json({ message: 'Invalid wallet_id' });
       }
@@ -58,10 +59,25 @@ exports.getDashboardStats = async (req, res) => {
     const income = Number(incomeResult && incomeResult[0] && incomeResult[0].total) || 0;
     const expense = Number(expenseResult && expenseResult[0] && expenseResult[0].total) || 0;
 
+    let balance = 0;
+    if (walletIdNum !== undefined) {
+      const [balanceRows] = await db.execute(
+        'SELECT COALESCE(balance, 0) AS balance FROM Wallets WHERE id = ? AND user_id = ?',
+        [walletIdNum, userId],
+      );
+      balance = Number(balanceRows && balanceRows[0] && balanceRows[0].balance) || 0;
+    } else {
+      const [balanceRows] = await db.execute(
+        'SELECT COALESCE(SUM(balance), 0) AS balance FROM Wallets WHERE user_id = ?',
+        [userId],
+      );
+      balance = Number(balanceRows && balanceRows[0] && balanceRows[0].balance) || 0;
+    }
+
     res.json({
         income,
         expense,
-        balance: income - expense,
+        balance,
         categoryStats
     });
 

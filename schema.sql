@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS Wallets (
     name VARCHAR(255) NOT NULL,
     type ENUM('cash', 'bank', 'credit') NOT NULL,
     currency VARCHAR(3) NOT NULL,
+    opening_balance DECIMAL(12, 2) NOT NULL DEFAULT 0,
     balance DECIMAL(12, 2) NOT NULL DEFAULT 0,
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

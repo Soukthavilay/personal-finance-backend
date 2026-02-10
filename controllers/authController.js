@@ -92,8 +92,8 @@ exports.register = async (req, res) => {
     await db.query('INSERT INTO Categories (user_id, name, type) VALUES ?', [values]);
 
     await db.execute(
-      `INSERT INTO Wallets (user_id, name, type, currency, balance, is_default)
-       SELECT id, 'Cash', 'cash', currency, 0, 1
+      `INSERT INTO Wallets (user_id, name, type, currency, opening_balance, balance, is_default)
+       SELECT id, 'Cash', 'cash', currency, 0, 0, 1
        FROM Users
        WHERE id = ?`,
       [userId]

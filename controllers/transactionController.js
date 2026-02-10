@@ -1,5 +1,19 @@
 const db = require('../config/db');
 
+async function getCategoryType(categoryId, userId) {
+  const [rows] = await db.execute(
+    'SELECT type FROM Categories WHERE id = ? AND user_id = ?',
+    [categoryId, userId],
+  );
+  return rows && rows[0] && rows[0].type;
+}
+
+function deltaForCategoryType(categoryType, amount) {
+  if (categoryType === 'income') return amount;
+  if (categoryType === 'expense') return -amount;
+  return null;
+}
+
 exports.getAllTransactions = async (req, res) => {
   const { startDate, endDate, categoryId, categoryStr, walletId, wallet_id, limit, offset } = req.query;
   const userId = req.user.id;
@@ -121,10 +135,22 @@ exports.createTransaction = async (req, res) => {
       return res.status(400).json({ message: 'Invalid wallet_id' });
     }
 
+    const categoryType = await getCategoryType(category_id, userId);
+    const delta = deltaForCategoryType(categoryType, numericAmount);
+    if (delta === null) {
+      return res.status(400).json({ message: 'Invalid category type' });
+    }
+
     const [result] = await db.execute(
       'INSERT INTO Transactions (user_id, category_id, wallet_id, amount, transaction_date, description) VALUES (?, ?, ?, ?, ?, ?)',
       [userId, category_id, walletIdNum, numericAmount, transaction_date, description]
     );
+
+    await db.execute(
+      'UPDATE Wallets SET balance = balance + ? WHERE id = ? AND user_id = ?',
+      [delta, walletIdNum, userId],
+    );
+
     res.status(201).json({ id: result.insertId, user_id: userId, category_id, wallet_id: walletIdNum, amount, transaction_date, description });
   } catch (error) {
     console.error(error);
@@ -170,6 +196,15 @@ exports.updateTransaction = async (req, res) => {
       return res.status(400).json({ message: 'Invalid wallet_id' });
     }
 
+    const oldCategoryType = await getCategoryType(existingTx.category_id, userId);
+    const newCategoryType = await getCategoryType(category_id, userId);
+    const oldAmountNum = Number(existingTx.amount);
+    const oldDelta = deltaForCategoryType(oldCategoryType, oldAmountNum);
+    const newDelta = deltaForCategoryType(newCategoryType, numericAmount);
+    if (oldDelta === null || newDelta === null) {
+      return res.status(400).json({ message: 'Invalid category type' });
+    }
+
     const [result] = await db.execute(
       'UPDATE Transactions SET category_id = ?, wallet_id = ?, amount = ?, transaction_date = ?, description = ? WHERE id = ? AND user_id = ?',
       [category_id, walletIdNum, numericAmount, transaction_date, description, id, userId]
@@ -177,6 +212,26 @@ exports.updateTransaction = async (req, res) => {
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Transaction not found or unauthorized' });
+    }
+
+    const oldWalletIdNum = Number(existingTx.wallet_id);
+    if (oldWalletIdNum === walletIdNum) {
+      const diff = newDelta - oldDelta;
+      if (diff !== 0) {
+        await db.execute(
+          'UPDATE Wallets SET balance = balance + ? WHERE id = ? AND user_id = ?',
+          [diff, walletIdNum, userId],
+        );
+      }
+    } else {
+      await db.execute(
+        'UPDATE Wallets SET balance = balance - ? WHERE id = ? AND user_id = ?',
+        [oldDelta, oldWalletIdNum, userId],
+      );
+      await db.execute(
+        'UPDATE Wallets SET balance = balance + ? WHERE id = ? AND user_id = ?',
+        [newDelta, walletIdNum, userId],
+      );
     }
 
     res.json({ message: 'Transaction updated' });
@@ -191,11 +246,32 @@ exports.deleteTransaction = async (req, res) => {
   const userId = req.user.id;
 
   try {
+    const [txRows] = await db.execute(
+      'SELECT id, wallet_id, category_id, amount FROM Transactions WHERE id = ? AND user_id = ?',
+      [id, userId],
+    );
+    if (!txRows || txRows.length === 0) {
+      return res.status(404).json({ message: 'Transaction not found or unauthorized' });
+    }
+    const tx = txRows[0];
+
     const [result] = await db.execute('DELETE FROM Transactions WHERE id = ? AND user_id = ?', [id, userId]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Transaction not found or unauthorized' });
     }
+
+    const categoryType = await getCategoryType(tx.category_id, userId);
+    const amountNum = Number(tx.amount);
+    const delta = deltaForCategoryType(categoryType, amountNum);
+    if (delta === null) {
+      return res.status(400).json({ message: 'Invalid category type' });
+    }
+
+    await db.execute(
+      'UPDATE Wallets SET balance = balance - ? WHERE id = ? AND user_id = ?',
+      [delta, Number(tx.wallet_id), userId],
+    );
 
     res.json({ message: 'Transaction deleted' });
   } catch (error) {

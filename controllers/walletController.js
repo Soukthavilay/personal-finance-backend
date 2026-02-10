@@ -39,7 +39,7 @@ exports.getAllWallets = async (req, res) => {
 
   try {
     const [wallets] = await db.execute(
-      'SELECT id, user_id, name, type, currency, balance, is_default, created_at, updated_at FROM Wallets WHERE user_id = ? ORDER BY is_default DESC, id ASC',
+      'SELECT id, user_id, name, type, currency, opening_balance, balance, is_default, created_at, updated_at FROM Wallets WHERE user_id = ? ORDER BY is_default DESC, id ASC',
       [userId]
     );
     res.json(wallets);
@@ -83,13 +83,14 @@ exports.createWallet = async (req, res) => {
       await db.execute('UPDATE Wallets SET is_default = 0 WHERE user_id = ?', [userId]);
     }
 
+    const openingBalance = balance === undefined ? 0 : balance;
     const [result] = await db.execute(
-      'INSERT INTO Wallets (user_id, name, type, currency, balance, is_default) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, name, type, finalCurrency, balance === undefined ? 0 : balance, isDefault]
+      'INSERT INTO Wallets (user_id, name, type, currency, opening_balance, balance, is_default) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [userId, name, type, finalCurrency, openingBalance, openingBalance, isDefault]
     );
 
     const [rows] = await db.execute(
-      'SELECT id, user_id, name, type, currency, balance, is_default, created_at, updated_at FROM Wallets WHERE id = ? AND user_id = ?',
+      'SELECT id, user_id, name, type, currency, opening_balance, balance, is_default, created_at, updated_at FROM Wallets WHERE id = ? AND user_id = ?',
       [result.insertId, userId]
     );
 
@@ -150,6 +151,22 @@ exports.updateWallet = async (req, res) => {
       params.push(currency);
     }
     if (balance !== undefined) {
+      const [netRows] = await db.execute(
+        `SELECT COALESCE(SUM(CASE
+          WHEN c.type = 'income' THEN t.amount
+          WHEN c.type = 'expense' THEN -t.amount
+          ELSE 0
+        END), 0) AS net
+        FROM Transactions t
+        JOIN Categories c ON t.category_id = c.id AND c.user_id = t.user_id
+        WHERE t.user_id = ? AND t.wallet_id = ?`,
+        [userId, id]
+      );
+      const net = Number(netRows && netRows[0] && netRows[0].net) || 0;
+      const openingBalance = Number(balance) - net;
+
+      setParts.push('opening_balance = ?');
+      params.push(openingBalance);
       setParts.push('balance = ?');
       params.push(balance);
     }
@@ -160,7 +177,7 @@ exports.updateWallet = async (req, res) => {
 
     if (setParts.length === 0) {
       const [rows] = await db.execute(
-        'SELECT id, user_id, name, type, currency, balance, is_default, created_at, updated_at FROM Wallets WHERE id = ? AND user_id = ?',
+        'SELECT id, user_id, name, type, currency, opening_balance, balance, is_default, created_at, updated_at FROM Wallets WHERE id = ? AND user_id = ?',
         [id, userId]
       );
       return res.json(rows[0]);
@@ -175,11 +192,78 @@ exports.updateWallet = async (req, res) => {
     }
 
     const [rows] = await db.execute(
-      'SELECT id, user_id, name, type, currency, balance, is_default, created_at, updated_at FROM Wallets WHERE id = ? AND user_id = ?',
+      'SELECT id, user_id, name, type, currency, opening_balance, balance, is_default, created_at, updated_at FROM Wallets WHERE id = ? AND user_id = ?',
       [id, userId]
     );
 
     res.json(rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.recalculateBalances = async (req, res) => {
+  const userId = req.user.id;
+  const body = req.body || {};
+  const apply = body.apply === true;
+
+  try {
+    const [wallets] = await db.execute(
+      'SELECT id, opening_balance, balance FROM Wallets WHERE user_id = ? ORDER BY id ASC',
+      [userId]
+    );
+
+    const [deltas] = await db.execute(
+      `SELECT t.wallet_id AS wallet_id,
+        COALESCE(SUM(CASE
+          WHEN c.type = 'income' THEN t.amount
+          WHEN c.type = 'expense' THEN -t.amount
+          ELSE 0
+        END), 0) AS net
+      FROM Transactions t
+      JOIN Categories c ON t.category_id = c.id AND c.user_id = t.user_id
+      WHERE t.user_id = ?
+      GROUP BY t.wallet_id`,
+      [userId]
+    );
+
+    const deltaByWalletId = new Map();
+    for (const row of deltas || []) {
+      deltaByWalletId.set(Number(row.wallet_id), Number(row.net) || 0);
+    }
+
+    const results = (wallets || []).map((w) => {
+      const currentBalance = Number(w.balance) || 0;
+      const storedOpeningBalance = Number(w.opening_balance) || 0;
+      const net = deltaByWalletId.get(Number(w.id)) || 0;
+
+      // If opening_balance was never tracked (legacy), infer it from current balance.
+      // This keeps the current balance stable and makes future recalcs deterministic.
+      const inferredOpeningBalance = storedOpeningBalance === 0 && net !== 0
+        ? currentBalance - net
+        : storedOpeningBalance;
+
+      const proposedBalance = inferredOpeningBalance + net;
+      return {
+        wallet_id: Number(w.id),
+        opening_balance: inferredOpeningBalance,
+        current_balance: currentBalance,
+        net_transactions: net,
+        proposed_balance: proposedBalance,
+      };
+    });
+
+    if (apply) {
+      for (const r of results) {
+        await db.execute(
+          'UPDATE Wallets SET opening_balance = ?, balance = ? WHERE id = ? AND user_id = ?',
+          [r.opening_balance, r.proposed_balance, r.wallet_id, userId]
+        );
+      }
+    }
+
+    res.json({ apply, results });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
